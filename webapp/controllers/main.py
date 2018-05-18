@@ -120,7 +120,7 @@ def twitter_authorized(resp):
         )
 
     session['twitter_oauth_token'] = resp['oauth_token'] + \
-                                     resp['oauth_token_secret']
+        resp['oauth_token_secret']
 
     user = User.query.filter_by(username=resp['screen_name']).first()
     if not user:
