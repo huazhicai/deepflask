@@ -1,6 +1,6 @@
 import datetime
 
-from flask import Flask, render_template
+from flask import Flask, render_template, Blueprint, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import Form
 from wtforms import StringField, TextAreaField
@@ -17,6 +17,13 @@ tags = db.Table(
     'post_tags',
     db.Column('post_id', db.Integer, db.ForeignKey('post.id')),
     db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'))
+)
+
+blog_blueprint = Blueprint(
+    'blog',
+    __name__,
+    template_folder='templates/blog',
+    url_prefix="/blog"
 )
 
 
@@ -97,7 +104,12 @@ def sidebar_data():
 
 
 @app.route('/')
-@app.route('/<int:page>')
+def index():
+    return redirect(url_for('blog.home'))
+
+
+@blog_blueprint.route('/')
+@blog_blueprint.route('/<int:page>')
 def home(page=1):
     posts = Post.query.order_by(Post.publish_date.desc()).paginate(page, 10)
     recent, top_tags = sidebar_data()
@@ -110,9 +122,10 @@ def home(page=1):
     )
 
 
-@app.route('/post/<int:post_id>', methods=('GET', 'POST'))
+@blog_blueprint.route('/post/<int:post_id>', methods=('GET', 'POST'))
 def post(post_id):
     form = CommentForm()
+
     if form.validate_on_submit():
         new_comment = Comment()
         new_comment.name = form.name.data
@@ -139,7 +152,7 @@ def post(post_id):
     )
 
 
-@app.route('/tag/<string:tag_name>')
+@blog_blueprint.route('/tag/<string:tag_name>')
 def tag(tag_name):
     tag = Tag.query.filter_by(title=tag_name).first_or_404()
     posts = tag.posts.order_by(Post.publish_date.desc()).all()
@@ -154,7 +167,7 @@ def tag(tag_name):
     )
 
 
-@app.route('/user/<string:username>')
+@blog_blueprint.route('/user/<string:username>')
 def user(username):
     user = User.query.filter_by(username=username).first_or_404()
     posts = user.posts.order_by(Post.publish_date.desc()).all()
@@ -167,6 +180,9 @@ def user(username):
         recent=recent,
         top_tags=top_tags
     )
+
+
+app.register_blueprint(blog_blueprint)
 
 
 if __name__ == '__main__':
