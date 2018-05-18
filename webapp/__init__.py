@@ -2,10 +2,10 @@ from flask import Flask
 from flask_login import current_user
 from flask_principal import identity_loaded, UserNeed, RoleNeed
 
-from models import db
-from extensions import bcrypt, oid, login_manager, principals
-from controllers.main import main_blueprint
-from controllers.blog import blog_blueprint
+from .models import db
+from .extensions import bcrypt, oid, login_manager, principals
+from .controllers.main import main_blueprint
+from .controllers.blog import blog_blueprint
 
 
 def create_app(object_name):
