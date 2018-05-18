@@ -1,14 +1,24 @@
 from flask_wtf import Form, RecaptchaField
 from wtforms import (
+    widgets,
     StringField,
     TextAreaField,
     PasswordField,
-    BooleanField,
-    SelectField
+    BooleanField
 )
 from wtforms.validators import DataRequired, Length, EqualTo, URL
 
 from webapp.models import User
+
+
+class CKTextAreaWidget(widgets.TextArea):
+    def __call__(self, field, **kwargs):
+        kwargs.setdefault('class_', 'ckeditor')
+        return super(CKTextAreaWidget, self).__call__(field, **kwargs)
+
+
+class CKTextAreaField(TextAreaField):
+    widget = CKTextAreaWidget()
 
 
 class CommentForm(Form):
@@ -21,16 +31,7 @@ class CommentForm(Form):
 
 class PostForm(Form):
     title = StringField('Title', [DataRequired(), Length(max=255)])
-    type = SelectField('Post Type', choices=[
-        ('blog', 'Blog Post'),
-        ('image', 'Image'),
-        ('video', 'Video'),
-        ('quote', 'Quote')
-    ])
-    text = TextAreaField('Content')
-    image = StringField('Image URL', [URL(), Length(max=255)])
-    video = StringField('Video Code', [Length(max=255)])
-    author = StringField('Author', [Length(max=255)])
+    text = TextAreaField('Content', [DataRequired()])
 
 
 class LoginForm(Form):

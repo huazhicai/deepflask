@@ -1,15 +1,16 @@
-import datetime
-
+from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
-from flask_mongoengine import MongoEngine
 from flask_login import AnonymousUserMixin
 
-from webapp.extensions import bcrypt
+from itsdangerous import (
+    TimedJSONWebSignatureSerializer as Serializer,
+    BadSignature,
+    SignatureExpired
+)
 
-available_roles = ('admin', 'poster', 'default')
+from webapp.extensions import bcrypt, cache
 
 db = SQLAlchemy()
-mongo = MongoEngine()
 
 tags = db.Table(
     'post_tags',
@@ -67,6 +68,21 @@ class User(db.Model):
 
     def get_id(self):
         return unicode(self.id)
+
+    @staticmethod
+    @cache.memoize(60)
+    def verify_auth_token(token):
+        s = Serializer(current_app.config['SECRET_KEY'])
+
+        try:
+            data = s.loads(token)
+        except SignatureExpired:
+            return None
+        except BadSignature:
+            return None
+
+        user = User.query.get(data['id'])
+        return user
 
 
 class Role(db.Model):
@@ -127,77 +143,11 @@ class Tag(db.Model):
         return "<Tag '{}'>".format(self.title)
 
 
-#
-# Mongo Example Code
-#
-
-class Userm(mongo.Document):
-    username = mongo.StringField(required=True)
-    password = mongo.StringField(required=True)
-    roles = mongo.ListField(mongo.StringField(choices=available_roles))
+class Reminder(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    date = db.Column(db.DateTime())
+    email = db.Column(db.String())
+    text = db.Column(db.Text())
 
     def __repr__(self):
-        return '<User {}>'.format(self.username)
-
-
-class Commentm(mongo.EmbeddedDocument):
-    name = mongo.StringField(required=True)
-    text = mongo.StringField(required=True)
-    date = mongo.DateTimeField(
-        default=datetime.datetime.now()
-    )
-
-    def __repr__(self):
-        return "<Comment '{}'>".format(self.text[:15])
-
-
-class Postm(mongo.Document):
-    title = mongo.StringField(required=True)
-    publish_date = mongo.DateTimeField(
-        default=datetime.datetime.now()
-    )
-    user = mongo.ReferenceField(Userm)
-    comments = mongo.ListField(
-        mongo.EmbeddedDocumentField(Commentm)
-    )
-    tags = mongo.ListField(mongo.StringField())
-
-    def __repr__(self):
-        return "<Post '{}'>".format(self.title)
-
-    meta = {
-        'allow_inheritance': True
-    }
-
-
-class BlogPost(Postm):
-    text = mongo.StringField(required=True)
-
-    @property
-    def type(self):
-        return "blog"
-
-
-class VideoPost(Postm):
-    video_object = mongo.StringField(required=True)
-
-    @property
-    def type(self):
-        return "video"
-
-
-class ImagePost(Postm):
-    image_url = mongo.StringField(required=True)
-
-    @property
-    def type(self):
-        return "image"
-
-
-class QuotePost(Postm):
-    quote = mongo.StringField(required=True)
-    author = mongo.StringField(required=True)
-
-    @property
-    def type(self):
-        return "quote"
+        return "<Reminder '{}'>".format(self.text[:20])

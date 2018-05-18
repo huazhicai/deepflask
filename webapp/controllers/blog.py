@@ -8,11 +8,8 @@ from flask import (render_template,
 from flask_login import login_required, current_user
 from flask_principal import Permission, UserNeed
 
-from webapp.extensions import poster_permission, admin_permission
-from webapp.models import (
-    db, Post, Tag, Comment, User, tags,
-    BlogPost, QuotePost, VideoPost, ImagePost
-)
+from webapp.extensions import poster_permission, admin_permission, cache
+from webapp.models import db, Post, Tag, Comment, User, tags
 from webapp.forms import CommentForm, PostForm
 
 blog_blueprint = Blueprint(
@@ -23,6 +20,7 @@ blog_blueprint = Blueprint(
 )
 
 
+@cache.cached(timeout=7200, key_prefix='sidebar_data')
 def sidebar_data():
     recent = Post.query.order_by(Post.publish_date.desc()).limit(5).all()
     top_tags = db.session.query(
@@ -34,6 +32,7 @@ def sidebar_data():
 
 @blog_blueprint.route('/')
 @blog_blueprint.route('/<int:page>')
+@cache.cached(timeout=60)
 def home(page=1):
     posts = Post.query.order_by(Post.publish_date.desc()).paginate(page, 10)
     recent, top_tags = sidebar_data()
@@ -47,6 +46,7 @@ def home(page=1):
 
 
 @blog_blueprint.route('/post/<int:post_id>', methods=('GET', 'POST'))
+@cache.cached(timeout=60)
 def post(post_id):
     form = CommentForm()
 
@@ -83,26 +83,15 @@ def new_post():
     form = PostForm()
 
     if form.validate_on_submit():
-        if form.type.data == "blog":
-            new_post = BlogPost()
-            new_post.text = form.text.data
-        elif form.type.data == "image":
-            new_post = ImagePost()
-            new_post.image_url = form.image.data
-        elif form.type.data == "video":
-            new_post = VideoPost()
-            new_post.video_object = form.video.data
-        elif form.type.data == "quote":
-            new_post = QuotePost()
-            new_post.text = form.text.data
-            new_post.author = form.author.data
-
-        new_post.title = form.title.data
-        new_post.user = User.objects(
+        new_post = Post(form.title.data)
+        new_post.text = form.text.data
+        new_post.publish_date = datetime.datetime.now()
+        new_post.user = User.query.filter_by(
             username=current_user.username
         ).one()
 
-        new_post.save()
+        db.session.add(new_post)
+        db.session.commit()
 
     return render_template('new.html', form=form)
 
@@ -137,6 +126,7 @@ def edit_post(id):
 
 
 @blog_blueprint.route('/tag/<string:tag_name>')
+@cache.cached(timeout=60)
 def tag(tag_name):
     tag = Tag.query.filter_by(title=tag_name).first_or_404()
     posts = tag.posts.order_by(Post.publish_date.desc()).all()
@@ -152,6 +142,7 @@ def tag(tag_name):
 
 
 @blog_blueprint.route('/user/<string:username>')
+@cache.cached(timeout=60)
 def user(username):
     user = User.query.filter_by(username=username).first_or_404()
     posts = user.posts.order_by(Post.publish_date.desc()).all()

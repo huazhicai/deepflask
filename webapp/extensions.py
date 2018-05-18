@@ -1,16 +1,33 @@
-from flask import flash, redirect, url_for, session
+from flask import (
+    flash,
+    redirect,
+    url_for,
+    session
+)
 from flask_bcrypt import Bcrypt
 from flask_openid import OpenID
-from flask_oauthlib.client import OAuth
+from flask_oauth import OAuth
 from flask_login import LoginManager
-from flask_restful import Api
 from flask_principal import Principal, Permission, RoleNeed
+from flask_restful import Api
+from flask_celery import Celery
+from flask_debugtoolbar import DebugToolbarExtension
+from flask_cache import Cache
+from flask_assets import Environment, Bundle
+from flask_admin import Admin
+from flask_mail import Mail
 
 bcrypt = Bcrypt()
 oid = OpenID()
 oauth = OAuth()
-rest_api = Api()
 principals = Principal()
+rest_api = Api()
+celery = Celery()
+debug_toolbar = DebugToolbarExtension()
+cache = Cache()
+assets_env = Environment()
+admin = Admin()
+mail = Mail()
 
 admin_permission = Permission(RoleNeed('admin'))
 poster_permission = Permission(RoleNeed('poster'))
@@ -78,3 +95,17 @@ def get_facebook_oauth_token():
 @twitter.tokengetter
 def get_twitter_oauth_token():
     return session.get('twitter_oauth_token')
+
+
+main_css = Bundle(
+    'css/bootstrap.css',
+    filters='cssmin',
+    output='css/common.css'
+)
+
+main_js = Bundle(
+    'js/jquery.js',
+    'js/bootstrap.js',
+    filters='jsmin',
+    output='js/common.js'
+)
